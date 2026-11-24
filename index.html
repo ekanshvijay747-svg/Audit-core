@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AuditCore | Enterprise Configuration Analysis</title>
+  
+  <!-- Inter & JetBrains Mono Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+          },
+          colors: {
+            slate: {
+              850: '#111827',
+              925: '#0b0f19',
+              950: '#070a12',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar for Enterprise Dark Theme */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #070a12;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Subtle grid pattern background */
+    .bg-grid-subtle {
+      background-size: 24px 24px;
+      background-image: linear-gradient(to right, rgba(51, 65, 85, 0.08) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(51, 65, 85, 0.08) 1px, transparent 1px);
+    }
+
+    /* Drag highlight pulse */
+    .drag-target-active {
+      border-color: #38bdf8 !important;
+      background-color: rgba(14, 165, 233, 0.06) !important;
+      box-shadow: inset 0 0 24px rgba(56, 189, 248, 0.12);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-200 font-sans antialiased min-h-screen flex flex-col bg-grid-subtle selection:bg-slate-800 selection:text-white">
+
+  <!-- ================= TOP NAVIGATION BAR ================= -->
+  <header class="border-b border-slate-800/90 bg-slate-925/95 backdrop-blur sticky top-0 z-30 px-4 lg:px-6 py-3">
+    <div class="max-w-[1720px] mx-auto flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Brand & Engine Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-100 shadow-sm">
+          <!-- Geometric Shield Icon (Clean, Non-AI) -->
+          <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-base font-extrabold tracking-wider text-slate-100 uppercase">AuditCore</span>
+            <span class="text-[10px] font-mono tracking-widest px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400 font-medium">v2.6-STABLE</span>
+          </div>
+          <p class="text-[11px] font-mono text-slate-400 tracking-tight">INFRASTRUCTURE SECURITY CONFIGURATION ANALYZER</p>
+        </div>
+      </div>
+
+      <!-- Telemetry Status Pills -->
+      <div class="hidden md:flex items-center gap-6 text-xs font-mono text-slate-400">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>POLICY ENGINE: <strong class="text-slate-300 font-semibold">ACTIVE</strong></span>
+        </div>
+        <div class="h-3.5 w-px bg-slate-800"></div>
+        <div>
+          <span>MODEL TARGET: <strong class="text-slate-300 font-semibold" id="target-model-badge">gemini-2.5-flash</strong></span>
+        </div>
+        <div class="h-3.5 w-px bg-slate-800"></div>
+        <div>
+          <span>SPEC BASELINE: <strong class="text-slate-300 font-semibold">CIS BENCHMARK v2.0</strong></span>
+        </div>
+      </div>
+
+      <!-- Execution Mode & Settings -->
+      <div class="flex items-center gap-3">
+        <!-- Mock / Live Mode Toggle Badge -->
+        <div class="flex items-center bg-slate-900 border border-slate-800 rounded p-1 text-xs font-mono">
+          <button id="mode-mock-btn" onclick="setAuditMode(true)" class="px-2.5 py-1 rounded text-slate-200 bg-slate-800 font-semibold border border-slate-700/80 transition-colors">
+            MOCK ENGINE
+          </button>
+          <button id="mode-live-btn" onclick="setAuditMode(false)" class="px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-colors">
+            LIVE API
+          </button>
+        </div>
+
+        <!-- API Key Configuration Trigger -->
+        <button id="open-settings-btn" onclick="toggleSettingsModal(true)" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-slate-100 border border-slate-700/80 rounded text-xs font-mono transition-colors" title="Configure API Credentials">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 2l-2 2m-1.5 1.5L16 7l-1.5-1.5M19 5l-7 7-2-2-4 4 2 2 4-4 2 2 7-7z"/>
+            <circle cx="7.5" cy="16.5" r="3.5"/>
+          </svg>
+          <span id="api-key-status-label">KEY: NONE (MOCK)</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ================= MAIN WORKSPACE (SPLIT PANE) ================= -->
+  <main class="flex-1 max-w-[1720px] w-full mx-auto p-4 lg:p-6 flex flex-col gap-6">
+
+    <!-- Active Target Notification / Info Bar -->
+    <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-2 bg-slate-900/60 border border-slate-800 rounded text-xs font-mono text-slate-400">
+      <div class="flex items-center gap-2">
+        <span class="text-slate-500 font-bold">&gt;_</span>
+        <span>LOADED TARGET:</span>
+        <span id="current-filename" class="text-slate-200 font-semibold">/etc/ssh/sshd_config</span>
+        <span class="text-slate-600">|</span>
+        <span id="buffer-stats">36 lines &bull; 1,048 bytes</span>
+      </div>
+      <div class="flex items-center gap-2 text-slate-400">
+        <span>DROP STATUS:</span>
+        <span class="text-emerald-400 font-semibold">LISTENING FOR CONFIG FILES</span>
+      </div>
+    </div>
+
+    <!-- Split-Pane Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-[680px]">
+
+      <!-- ================= LEFT PANE: INPUT ================= -->
+      <section class="lg:col-span-6 flex flex-col bg-slate-900/85 border border-slate-800 rounded-lg shadow-xl overflow-hidden relative" id="left-pane-container">
+        
+        <!-- Left Pane Header -->
+        <div class="flex items-center justify-between px-4 py-3 bg-slate-925 border-b border-slate-800">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-slate-600"></div>
+            <h2 class="font-mono text-xs font-bold uppercase tracking-wider text-slate-200">Configuration Buffer</h2>
+            <span class="text-[11px] font-mono text-slate-500 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800">UTF-8</span>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="flex items-center gap-2">
+            <button onclick="loadFlawedSample()" class="text-[11px] font-mono text-slate-400 hover:text-slate-200 px-2 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded transition-colors" title="Reset to standard vulnerable Ubuntu sshd_config sample">
+              Sample Flawed
+            </button>
+            <button onclick="loadHardenedSample()" class="text-[11px] font-mono text-slate-400 hover:text-slate-200 px-2 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded transition-colors" title="Load hardened sample">
+              Sample Hardened
+            </button>
+            <button onclick="clearConfigBuffer()" class="text-[11px] font-mono text-rose-400/80 hover:text-rose-300 px-2 py-1 bg-slate-900 hover:bg-rose-950/30 border border-slate-800 rounded transition-colors" title="Clear current buffer">
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- Drag-and-Drop Dropzone & Text Area Container -->
+        <div class="relative flex-1 flex flex-col bg-slate-950" id="drop-zone">
+          
+          <!-- Large Monospace Text Area -->
+          <textarea 
+            id="config-input" 
+            spellcheck="false"
+            autocomplete="off"
+            class="flex-1 w-full p-4 font-mono text-xs md:text-sm text-slate-200 bg-transparent resize-none focus:outline-none focus:ring-0 leading-relaxed border-0"
+            placeholder="# Paste configuration file contents here, or drag and drop a configuration file..."
+          ></textarea>
+
+          <!-- Drag Overlay (Displayed on DragOver) -->
+          <div id="drop-overlay" class="absolute inset-0 bg-slate-950/90 border-2 border-dashed border-cyan-500/70 backdrop-blur-sm z-20 hidden flex flex-col items-center justify-center gap-3 p-6 text-center pointer-events-none">
+            <div class="w-12 h-12 rounded border border-cyan-500/40 bg-cyan-950/30 flex items-center justify-center text-cyan-400">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <div>
+              <p class="font-mono text-sm font-bold text-cyan-300 uppercase tracking-wider">Ingest Configuration File</p>
+              <p class="text-xs font-mono text-slate-400 mt-1">Release file to parse into buffer (sshd_config, .conf, .txt, .cfg, .json)</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Left Pane Footer & Primary Execution Trigger -->
+        <div class="p-3 bg-slate-925 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          
+          <!-- File selection input alternative (unrestricted accept for extensionless Linux configs like sshd_config) -->
+          <div class="flex items-center gap-2">
+            <input type="file" id="file-selector" class="hidden">
+            <button onclick="document.getElementById('file-selector').click()" class="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 rounded font-mono text-xs transition-colors">
+              <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <span>Browse File...</span>
+            </button>
+            <span class="text-[11px] font-mono text-slate-500 hidden sm:inline">or drag &amp; drop anywhere in this pane</span>
+          </div>
+
+          <!-- Sharp Primary Button -->
+          <button 
+            id="audit-btn" 
+            onclick="handleAuditClick()"
+            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-mono text-xs uppercase tracking-widest font-bold rounded border border-emerald-500/50 shadow-md shadow-emerald-950/50 transition-all focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <svg class="w-4 h-4 text-emerald-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span id="audit-btn-label">Audit Configuration</span>
+          </button>
+
+        </div>
+
+      </section>
+
+      <!-- ================= RIGHT PANE: AUDIT REPORT ================= -->
+      <section class="lg:col-span-6 flex flex-col bg-slate-900/85 border border-slate-800 rounded-lg shadow-xl overflow-hidden relative" id="right-pane-container">
+        
+        <!-- Right Pane Header -->
+        <div class="flex items-center justify-between px-4 py-3 bg-slate-925 border-b border-slate-800">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-slate-600"></div>
+            <h2 class="font-mono text-xs font-bold uppercase tracking-wider text-slate-200">Audit Report</h2>
+          </div>
+          <div id="findings-summary-badge" class="font-mono text-xs text-slate-400 hidden">
+            <!-- Dynamically populated with findings count -->
+          </div>
+        </div>
+
+        <!-- Report Content Scrollable Container -->
+        <div class="flex-1 p-5 overflow-y-auto flex flex-col gap-5 bg-slate-950" id="report-viewport">
+
+          <!-- 1. EMPTY STATE (Initial View) -->
+          <div id="empty-state" class="flex-1 flex flex-col items-center justify-center py-16 px-4 text-center">
+            <div class="w-14 h-14 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mb-4 shadow-inner">
+              <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="9" y1="9" x2="15" y2="9"/>
+                <line x1="9" y1="13" x2="15" y2="13"/>
+                <line x1="9" y1="17" x2="11" y2="17"/>
+              </svg>
+            </div>
+            <h3 class="font-mono text-sm font-bold uppercase tracking-wider text-slate-300">Awaiting Policy Inspection</h3>
+            <p class="text-xs font-mono text-slate-500 max-w-sm mt-1.5 leading-normal">
+              Load an infrastructure configuration payload into the buffer and click <span class="text-slate-300 font-semibold">[Audit Configuration]</span> to evaluate security posture against policy benchmarks.
+            </p>
+          </div>
+
+          <!-- 2. PRECISE LOADING STATE (Active Analysis) -->
+          <div id="loading-state" class="hidden flex-1 flex flex-col items-center justify-center py-12 px-6 text-center">
+            <div class="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-lg p-6 shadow-2xl text-left">
+              
+              <!-- Precise Status Indicator (Zero AI Cliches) -->
+              <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                <span class="font-mono text-xs font-bold text-slate-200 tracking-wider flex items-center gap-2">
+                  <span class="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                  STATUS: ANALYZING CONFIGURATION POLICIES...
+                </span>
+                <span id="loading-step-counter" class="font-mono text-[11px] text-cyan-400 font-bold">1 / 3</span>
+              </div>
+
+              <!-- Monospace Progress Telemetry -->
+              <div class="mt-4 space-y-2 font-mono text-xs text-slate-400">
+                <div class="flex items-center justify-between text-[11px]">
+                  <span id="loading-substatus">Tokenizing directives &amp; parameters...</span>
+                  <span id="loading-percentage" class="text-slate-300">28%</span>
+                </div>
+                <!-- Linear Progress Bar -->
+                <div class="w-full h-1.5 bg-slate-950 rounded overflow-hidden border border-slate-800">
+                  <div id="loading-progress-bar" class="h-full bg-cyan-500 transition-all duration-300 w-1/3"></div>
+                </div>
+              </div>
+
+              <!-- Terminal Diagnostic Stream -->
+              <div class="mt-4 p-3 bg-slate-950 rounded border border-slate-850 font-mono text-[11px] text-slate-400 space-y-1">
+                <div class="text-slate-500">&gt; engine.loadRuleset("CIS-Ubuntu-22.04") [OK]</div>
+                <div class="text-slate-500">&gt; parsing syntax tree &amp; directive context...</div>
+                <div id="loading-log-line" class="text-cyan-400">&gt; evaluating cryptographic bounds &amp; auth rules...</div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- 3. ACTIVE AUDIT REPORT CONTAINER (Shown upon completed audit) -->
+          <div id="report-content" class="hidden flex flex-col gap-6">
+
+            <!-- System Integrity Score Card -->
+            <div id="score-card" class="bg-slate-900/90 border rounded-lg p-5 transition-all">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                
+                <!-- Digital Readout Left Column -->
+                <div>
+                  <div class="text-[11px] font-mono uppercase tracking-widest text-slate-400 font-semibold mb-1 flex items-center gap-2">
+                    <span>System Integrity Score</span>
+                    <span id="score-status-indicator" class="w-2 h-2 rounded-full"></span>
+                  </div>
+                  <div class="flex items-baseline gap-2">
+                    <span id="score-readout" class="font-mono text-6xl lg:text-7xl font-extrabold tracking-tighter leading-none">--</span>
+                    <span class="font-mono text-sm text-slate-500 font-semibold">/ 100</span>
+                  </div>
+                  <p id="score-posture-label" class="font-mono text-xs font-bold uppercase tracking-wider mt-2"></p>
+                </div>
+
+                <!-- Score Calibrated Scale & Benchmarks Right Column -->
+                <div class="sm:w-64 flex flex-col gap-2.5 bg-slate-950/70 p-3.5 rounded border border-slate-800/80 font-mono text-xs">
+                  <div class="flex items-center justify-between text-[11px] text-slate-400">
+                    <span>COMPLIANCE INDEX</span>
+                    <span id="benchmark-rating-text" class="font-bold text-slate-200">CIS COMPLIANT</span>
+                  </div>
+
+                  <!-- Segmented Visual Bar -->
+                  <div class="w-full h-2 rounded bg-slate-900 overflow-hidden flex border border-slate-800">
+                    <div id="score-progress-bar" class="h-full transition-all duration-700 w-0"></div>
+                  </div>
+
+                  <!-- Threshold Markers -->
+                  <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                    <span class="text-rose-400">0-50 CRIT</span>
+                    <span class="text-amber-400">51-89 WARN</span>
+                    <span class="text-emerald-400">90-100 PASS</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Vulnerability Findings Section -->
+            <div class="flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <h3 class="font-mono text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                  <span>Identified Vulnerabilities</span>
+                  <span id="findings-count-pill" class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">0</span>
+                </h3>
+
+                <!-- Filter Controls -->
+                <div class="flex items-center gap-1 text-[11px] font-mono">
+                  <span class="text-slate-500 mr-1 hidden sm:inline">FILTER:</span>
+                  <button onclick="filterVulnerabilities('ALL')" id="filter-all-btn" class="px-2 py-0.5 rounded bg-slate-800 text-slate-200 font-semibold border border-slate-700 transition-colors">ALL</button>
+                  <button onclick="filterVulnerabilities('Critical')" id="filter-crit-btn" class="px-2 py-0.5 rounded text-rose-400 hover:bg-slate-800 transition-colors">CRIT</button>
+                  <button onclick="filterVulnerabilities('Warning')" id="filter-warn-btn" class="px-2 py-0.5 rounded text-amber-400 hover:bg-slate-800 transition-colors">WARN</button>
+                  <button onclick="filterVulnerabilities('Info')" id="filter-info-btn" class="px-2 py-0.5 rounded text-cyan-400 hover:bg-slate-800 transition-colors">INFO</button>
+                </div>
+              </div>
+
+              <!-- Vulnerabilities Dynamic List -->
+              <div id="vulnerabilities-container" class="flex flex-col gap-3">
+                <!-- Dynamically populated finding cards -->
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ================= CREDENTIALS / CONFIG MODAL ================= -->
+  <div id="settings-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-lg max-w-lg w-full p-6 shadow-2xl relative font-sans">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 2l-2 2m-1.5 1.5L16 7l-1.5-1.5M19 5l-7 7-2-2-4 4 2 2 7-7z"/>
+            <circle cx="7.5" cy="16.5" r="3.5"/>
+          </svg>
+          <h3 class="font-mono text-sm font-bold uppercase tracking-wider text-slate-200">Execution Parameters &amp; API Key</h3>
+        </div>
+        <button onclick="toggleSettingsModal(false)" class="text-slate-400 hover:text-slate-200 p-1">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="py-4 space-y-4 font-mono text-xs">
+        <div>
+          <label for="modal-model-input" class="block text-slate-400 font-semibold mb-1">TARGET AUDIT MODEL ID:</label>
+          <input 
+            type="text" 
+            id="modal-model-input" 
+            value="gemini-2.5-flash" 
+            placeholder="gemini-2.5-flash" 
+            class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded text-slate-200 focus:outline-none focus:border-slate-600 font-mono"
+          >
+          <p class="text-[11px] text-slate-500 mt-1">Default: <code class="text-slate-300">gemini-2.5-flash</code>. Editable to target any active Gemini model ID.</p>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 font-semibold mb-1">EXECUTION ENGINE MODE:</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-800 rounded cursor-pointer hover:border-slate-700">
+              <input type="radio" name="modal-mode" id="modal-mode-mock" value="mock" onchange="setAuditMode(true)">
+              <span class="text-slate-300">Mock Fallback (Offline)</span>
+            </label>
+            <label class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-800 rounded cursor-pointer hover:border-slate-700">
+              <input type="radio" name="modal-mode" id="modal-mode-live" value="live" onchange="setAuditMode(false)">
+              <span class="text-slate-300">Live API Endpoint</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label for="modal-api-key-input" class="block text-slate-400 font-semibold mb-1">GEMINI API KEY:</label>
+          <input 
+            type="password" 
+            id="modal-api-key-input" 
+            placeholder="AIzaSy..." 
+            class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded text-slate-200 focus:outline-none focus:border-slate-600 font-mono"
+          >
+          <p class="text-[11px] text-slate-500 mt-1">Stored locally in your browser's localStorage for live audit calls.</p>
+        </div>
+
+        <!-- System Prompt Specification -->
+        <div>
+          <label class="block text-slate-400 font-semibold mb-1">SYSTEM PROMPT (ACTIVE SPEC):</label>
+          <div class="p-2.5 bg-slate-950 border border-slate-850 rounded text-slate-400 text-[10px] leading-relaxed max-h-24 overflow-y-auto font-mono">
+            You are a strict enterprise cybersecurity auditor. Analyze the provided configuration file text. Return ONLY a JSON object with two top-level keys: 'security_score' (an integer out of 100 based on file security) and 'vulnerabilities' (an array of objects). Each object in the array must have four keys: 'line' (the problematic config setting), 'severity' (Critical, Warning, or Info), 'reason' (a concise, technical explanation of the vulnerability), and 'remediation_command' (the exact bash command or corrected config line to patch it). Do not include markdown formatting or conversational text.
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+        <button onclick="toggleSettingsModal(false)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-mono text-xs">
+          Cancel
+        </button>
+        <button onclick="saveSettingsModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold rounded">
+          Apply Configuration
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT APPLICATION CORE ================= -->
+  <script>
+    /**
+     * AuditCore Enterprise Configuration Analyzer
+     * Execution Mode Toggle:
+     * When useMock is true, executes local line-by-line policy evaluation with zero network overhead.
+     * When useMock is false, dispatches live fetch requests to the configured Gemini model (default: models/gemini-2.5-flash).
+     */
+    let useMock = true;
+    const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+
+    // Default flawed Ubuntu sshd_config preset
+    const DEFAULT_FLAWED_SSHD_CONFIG = `# Package generated configuration file
+# See the sshd_config(5) manpage for details
+
+Port 22
+AddressFamily any
+ListenAddress 0.0.0.0
+ListenAddress ::
+
+# HostKey for protocol version 2
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+# Logging
+SyslogFacility AUTH
+LogLevel INFO
+
+# Authentication Policy:
+LoginGraceTime 120
+PermitRootLogin yes
+StrictModes yes
+MaxAuthTries 10
+MaxSessions 10
+
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+
+# Insecure Credential & Password Directives:
+PermitEmptyPasswords yes
+PasswordAuthentication yes
+
+# Network & Tunneling Policy:
+X11Forwarding yes
+X11DisplayOffset 10
+PrintMotd no
+PrintLastLog yes
+TCPKeepAlive yes
+ClientAliveInterval 0
+
+# Legacy Cryptographic Ciphers & MACs:
+Ciphers aes128-ctr,aes192-ctr,aes256-ctr,aes128-cbc,3des-cbc
+MACs hmac-md5,hmac-sha1,hmac-sha2-256,hmac-sha2-512
+
+AcceptEnv LANG LC_*
+Subsystem sftp /usr/lib/openssh/sftp-server`;
+
+    // Hardened CIS-compliant reference configuration preset
+    const HARDENED_SSHD_CONFIG = `# Hardened OpenSSH Daemon Configuration
+# Compliant with CIS Ubuntu Linux Benchmark v2.0
+
+Port 22
+AddressFamily inet
+ListenAddress 0.0.0.0
+
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+
+SyslogFacility AUTH
+LogLevel VERBOSE
+
+LoginGraceTime 60
+PermitRootLogin no
+StrictModes yes
+MaxAuthTries 3
+MaxSessions 4
+
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+
+PermitEmptyPasswords no
+PasswordAuthentication no
+HostbasedAuthentication no
+IgnoreRhosts yes
+
+X11Forwarding no
+PrintMotd no
+PrintLastLog yes
+TCPKeepAlive no
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512
+
+Subsystem sftp /usr/lib/openssh/sftp-server -f AUTHPRIV -l INFO`;
+
+    /**
+     * Rule-driven local static policy analyzer for Mock Mode.
+     * Evaluates actual non-commented lines in `configText` to calculate a realistic
+     * security_score and vulnerability list:
+     * - Low-risk / hardened configs score ~90-98
+     * - Medium-risk configs (warnings only) score ~55-75
+     * - High-risk configs (critical flaws) score ~25-45
+     */
+    function evaluateMockSecurityAudit(configText) {
+      const rawLines = configText.split(/\r?\n/);
+      const activeLines = rawLines
+        .map(l => l.trim())
+        .filter(l => l.length > 0 && !l.startsWith('#') && !l.startsWith(';'));
+
+      const vulnerabilities = [];
+      let totalDeduction = 0;
+      let criticalCount = 0;
+      let warningCount = 0;
+      let infoCount = 0;
+
+      const addFinding = (line, severity, weight, reason, remediation_command) => {
+        vulnerabilities.push({
+          line,
+          severity,
+          reason,
+          remediation_command
+        });
+        totalDeduction += weight;
+        if (severity === 'Critical') criticalCount++;
+        else if (severity === 'Warning') warningCount++;
+        else infoCount++;
+      };
+
+      activeLines.forEach(line => {
+        // 1. PermitEmptyPasswords yes (Critical)
+        if (/^PermitEmptyPasswords\s+yes\b/i.test(line)) {
+          addFinding(
+            line,
+            "Critical",
+            12,
+            "Permits unauthenticated remote shell access for any account with null authentication tokens. Immediate vulnerability vector for unauthorized privilege escalation.",
+            "sudo sed -i 's/^#*PermitEmptyPasswords.*/PermitEmptyPasswords no/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+
+        // 2. PermitRootLogin (Critical if 'yes', Warning if 'prohibit-password' / 'without-password')
+        if (/^PermitRootLogin\s+yes\b/i.test(line)) {
+          addFinding(
+            line,
+            "Critical",
+            12,
+            "Direct root logins bypass individual accountability, violate CIS Benchmark 5.2.10, and facilitate brute-force credential stuffing against administrative accounts.",
+            "sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+        if (/^PermitRootLogin\s+(prohibit-password|without-password|forced-commands-only)\b/i.test(line)) {
+          addFinding(
+            line,
+            "Warning",
+            7,
+            "Permits direct root login via SSH keys; CIS Level 2 hardening recommends disabling direct root SSH login altogether and enforcing privilege escalation via sudo.",
+            "sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+
+        // 3. Ciphers containing CBC, 3DES, RC4/Arcfour, or Blowfish (Critical)
+        if (/^Ciphers\s+/i.test(line) && /(-cbc|3des|arcfour|blowfish|cast128|rc4)/i.test(line)) {
+          addFinding(
+            line,
+            "Critical",
+            11,
+            "Enables CBC-mode ciphers vulnerable to plaintext recovery attacks (CVE-2008-5161) or deprecated 64-bit block ciphers (3DES/SWEET32, CVE-2016-2183).",
+            "sudo sed -i 's/^#*Ciphers.*/Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+
+        // 4. KexAlgorithms containing SHA-1 or Group 1 (Critical)
+        if (/^KexAlgorithms\s+/i.test(line) && /(diffie-hellman-group1-sha1|diffie-hellman-group14-sha1|group-exchange-sha1)/i.test(line)) {
+          addFinding(
+            line,
+            "Critical",
+            15,
+            "Permits legacy Diffie-Hellman SHA-1 key exchange algorithms susceptible to Logjam and cryptographic downgrade attacks.",
+            "sudo sed -i 's/^#*KexAlgorithms.*/KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+
+        // 5. Legacy SSH Protocol 1 (Critical)
+        if (/^Protocol\s+.*1/i.test(line)) {
+          addFinding(
+            line,
+            "Critical",
+            18,
+            "Enables legacy SSH Protocol v1, which suffers from structural cryptographic flaws allowing session hijacking and key insertion.",
+            "sudo sed -i 's/^#*Protocol.*/Protocol 2/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+
+        // 6. StrictModes no (Critical)
+        if (/^StrictModes\s+no\b/i.test(line)) {
+          addFinding(
+            line,
+            "Critical",
+            15,
+            "Disables ownership and permission checks on user ~/.ssh directories, allowing local privilege escalation via world-writable authorized_keys.",
+            "sudo sed -i 's/^#*StrictModes.*/StrictModes yes/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+
+        // 7. PasswordAuthentication yes (Warning)
+        if (/^PasswordAuthentication\s+yes\b/i.test(line)) {
+          addFinding(
+            line,
+            "Warning",
+            9,
+            "Permits interactive password authentication over SSH. SSH key pairs or certificate-based public key authentication should be exclusively enforced.",
+            "sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+
+        // 8. MaxAuthTries > 4 (Warning)
+        const maxAuthMatch = line.match(/^MaxAuthTries\s+(\d+)/i);
+        if (maxAuthMatch && parseInt(maxAuthMatch[1], 10) > 4) {
+          addFinding(
+            line,
+            "Warning",
+            7,
+            `Permits ${maxAuthMatch[1]} authentication attempts per connection, exceeding the CIS recommended threshold of 4 and enabling higher-throughput brute-force attacks.`,
+            "sudo sed -i 's/^#*MaxAuthTries.*/MaxAuthTries 4/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+
+        // 9. Weak MACs (MD5, SHA-1, or 64-bit UMAC) (Warning)
+        if (/^MACs\s+/i.test(line) && /(hmac-md5|hmac-sha1|umac-64)/i.test(line)) {
+          addFinding(
+            line,
+            "Warning",
+            8,
+            "Permits MD5 or SHA-1 hashing algorithms in message authentication codes, which are cryptographically broken and deprecated under FIPS 140-3 guidelines.",
+            "sudo sed -i 's/^#*MACs.*/MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+
+        // 10. ClientAliveInterval 0 or > 600 (Warning)
+        const aliveMatch = line.match(/^ClientAliveInterval\s+(\d+)/i);
+        if (aliveMatch) {
+          const val = parseInt(aliveMatch[1], 10);
+          if (val === 0 || val > 600) {
+            addFinding(
+              line,
+              "Warning",
+              7,
+              val === 0
+                ? "Disables server-side SSH session idle termination timeout, exposing inactive terminal sessions to physical hijacking or lingering process misuse."
+                : `Sets idle timeout to ${val}s (>600s), exceeding the CIS benchmark 300-second idle termination guideline.`,
+              "sudo sed -i 's/^#*ClientAliveInterval.*/ClientAliveInterval 300/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+            );
+            return;
+          }
+        }
+
+        // 11. IgnoreRhosts no or HostbasedAuthentication yes (Warning)
+        if (/^IgnoreRhosts\s+no\b/i.test(line) || /^HostbasedAuthentication\s+yes\b/i.test(line)) {
+          addFinding(
+            line,
+            "Warning",
+            8,
+            "Permits legacy .rhosts / host-based trust authentication, allowing lateral compromise from spoofed or untrusted peer hosts.",
+            "sudo sed -i 's/^#*IgnoreRhosts.*/IgnoreRhosts yes/; s/^#*HostbasedAuthentication.*/HostbasedAuthentication no/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+
+        // 12. X11Forwarding yes (Info)
+        if (/^X11Forwarding\s+yes\b/i.test(line)) {
+          addFinding(
+            line,
+            "Info",
+            3,
+            "Enables X11 graphical forwarding on headless server instances, expanding the local attack surface if untrusted local clients interact with the display server.",
+            "sudo sed -i 's/^#*X11Forwarding.*/X11Forwarding no/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+
+        // 13. Default Port 22 (Info)
+        if (/^Port\s+22\b/i.test(line)) {
+          addFinding(
+            line,
+            "Info",
+            4,
+            "Standard default SSH port 22 is continuously targeted by automated internet scanners. Operating on an alternate high port or behind a bastion reduces noise in authentication logs.",
+            "sudo sed -i 's/^#*Port 22/Port 2222/' /etc/ssh/sshd_config && sudo sshd -t && sudo systemctl reload sshd"
+          );
+          return;
+        }
+
+        // 14. Generic Infrastructure Config Rules (TLS, Secrets, Debug, Permissions)
+        if (/(ssl_protocols|tls_version)/i.test(line) && /(SSLv2|SSLv3|TLSv1\b|TLSv1\.0|TLSv1\.1)/i.test(line)) {
+          addFinding(
+            line,
+            "Critical",
+            18,
+            "Enables deprecated SSL/TLS protocol versions vulnerable to POODLE, BEAST, and downgrade attacks. Enforce TLSv1.2 and TLSv1.3 exclusively.",
+            "ssl_protocols TLSv1.2 TLSv1.3;"
+          );
+          return;
+        }
+
+        if (/(password|api_key|secret_key|private_key|access_token)\s*[:=]\s*['"]?[A-Za-z0-9_\-!@#$%^&*]{4,}/i.test(line)) {
+          addFinding(
+            line,
+            "Critical",
+            20,
+            "Hardcoded plaintext credential or secret token detected directly inside configuration text, risking credential leakage via version control or backups.",
+            "# Move secret to environment variable or vault manager (e.g., HashiCorp Vault / systemd LoadCredential)"
+          );
+          return;
+        }
+
+        if (/^(debug|app_debug|display_errors)\s*[:=]?\s*(true|on|1|yes)\b/i.test(line)) {
+          addFinding(
+            line,
+            "Warning",
+            9,
+            "Production verbose debug mode enabled, which can expose stack traces, environment variables, and internal paths to remote clients.",
+            "debug = false"
+          );
+          return;
+        }
+      });
+
+      // Calculate calibrated security score across risk tiers:
+      // - High-risk (Critical findings present): ~25-45
+      // - Medium-risk (Warnings present, 0 Criticals): ~55-75
+      // - Low-risk (Info only or 0 findings): ~90-98
+      let score = 100 - totalDeduction;
+
+      if (criticalCount > 0) {
+        score = Math.max(25, Math.min(45, score));
+      } else if (warningCount > 0) {
+        score = Math.max(55, Math.min(75, score));
+      } else {
+        score = Math.max(90, Math.min(98, score === 100 ? 98 : score));
+      }
+
+      // Sort findings by severity (Critical -> Warning -> Info)
+      const severityOrder = { Critical: 0, Warning: 1, Info: 2 };
+      vulnerabilities.sort((a, b) => (severityOrder[a.severity] ?? 3) - (severityOrder[b.severity] ?? 3));
+
+      return {
+        security_score: score,
+        vulnerabilities
+      };
+    }
+
+    // Fallback reference pointing to the evaluated default flawed config
+    const mockAuditData = evaluateMockSecurityAudit(DEFAULT_FLAWED_SSHD_CONFIG);
+
+    // State cache
+    let currentAuditResult = null;
+    let activeFilter = 'ALL';
+    let liveLoadingTimers = [];
+
+    // DOM References
+    const configInput = document.getElementById('config-input');
+    const dropZone = document.getElementById('drop-zone');
+    const dropOverlay = document.getElementById('drop-overlay');
+    const fileSelector = document.getElementById('file-selector');
+    const auditBtn = document.getElementById('audit-btn');
+    const auditBtnLabel = document.getElementById('audit-btn-label');
+    const bufferStats = document.getElementById('buffer-stats');
+    const currentFilename = document.getElementById('current-filename');
+
+    const emptyState = document.getElementById('empty-state');
+    const loadingState = document.getElementById('loading-state');
+    const reportContent = document.getElementById('report-content');
+    const scoreReadout = document.getElementById('score-readout');
+    const scoreCard = document.getElementById('score-card');
+    const scorePostureLabel = document.getElementById('score-posture-label');
+    const scoreProgressBar = document.getElementById('score-progress-bar');
+    const scoreStatusIndicator = document.getElementById('score-status-indicator');
+    const benchmarkRatingText = document.getElementById('benchmark-rating-text');
+    const vulnerabilitiesContainer = document.getElementById('vulnerabilities-container');
+    const findingsCountPill = document.getElementById('findings-count-pill');
+    const findingsSummaryBadge = document.getElementById('findings-summary-badge');
+
+    // ================= INITIALIZATION & BUFFER MANAGEMENT =================
+
+    window.addEventListener('DOMContentLoaded', () => {
+      // Pre-fill buffer with realistic flawed configuration
+      configInput.value = DEFAULT_FLAWED_SSHD_CONFIG;
+      updateBufferStatistics();
+
+      // Setup Drag and Drop listeners
+      initDragAndDrop();
+
+      // Sync active execution mode and model badge with UI
+      syncModeUI();
+
+      // Keyboard shortcut: Ctrl/Cmd + Enter to trigger audit
+      configInput.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+          e.preventDefault();
+          handleAuditClick();
+        }
+      });
+
+      configInput.addEventListener('input', updateBufferStatistics);
+    });
+
+    function updateBufferStatistics() {
+      const text = configInput.value;
+      const lines = text.length === 0 ? 0 : text.split('\n').length;
+      const bytes = new Blob([text]).size;
+      bufferStats.textContent = `${lines} lines • ${bytes.toLocaleString()} bytes`;
+    }
+
+    function loadFlawedSample() {
+      configInput.value = DEFAULT_FLAWED_SSHD_CONFIG;
+      currentFilename.textContent = '/etc/ssh/sshd_config (Flawed Baseline)';
+      updateBufferStatistics();
+    }
+
+    function loadHardenedSample() {
+      configInput.value = HARDENED_SSHD_CONFIG;
+      currentFilename.textContent = '/etc/ssh/sshd_config (CIS-Hardened Baseline)';
+      updateBufferStatistics();
+    }
+
+    function clearConfigBuffer() {
+      configInput.value = '';
+      currentFilename.textContent = 'untitled.conf';
+      updateBufferStatistics();
+      configInput.focus();
+    }
+
+    // ================= HTML5 DRAG & DROP WITH FILEREADER API =================
+
+    function initDragAndDrop() {
+      const targetPane = document.getElementById('left-pane-container');
+
+      ['dragenter', 'dragover'].forEach(eventName => {
+        targetPane.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropOverlay.classList.remove('hidden');
+          dropZone.classList.add('drag-target-active');
+        }, false);
+      });
+
+      ['dragleave', 'dragend'].forEach(eventName => {
+        targetPane.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const rect = targetPane.getBoundingClientRect();
+          if (
+            e.clientX <= rect.left ||
+            e.clientX >= rect.right ||
+            e.clientY <= rect.top ||
+            e.clientY >= rect.bottom
+          ) {
+            dropOverlay.classList.add('hidden');
+            dropZone.classList.remove('drag-target-active');
+          }
+        }, false);
+      });
+
+      targetPane.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropOverlay.classList.add('hidden');
+        dropZone.classList.remove('drag-target-active');
+
+        const dt = e.dataTransfer;
+        const files = dt.files;
+
+        if (files && files.length > 0) {
+          handleFileIngestion(files[0]);
+        }
+      }, false);
+
+      // File input change — reset e.target.value so the same file can be re-selected after Clear
+      fileSelector.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          handleFileIngestion(e.target.files[0]);
+          e.target.value = '';
+        }
+      });
+    }
+
+    function handleFileIngestion(file) {
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = function(event) {
+        configInput.value = event.target.result;
+        currentFilename.textContent = file.name;
+        updateBufferStatistics();
+      };
+
+      reader.onerror = function() {
+        alert(`Failed to read configuration file: ${file.name}`);
+      };
+
+      reader.readAsText(file);
+    }
+
+    // ================= AUDIT EXECUTION & GEMINI API INTEGRATION =================
+
+    async function handleAuditClick() {
+      const configText = configInput.value.trim();
+      if (!configText) {
+        alert('Configuration buffer is empty. Please enter or drop a configuration file.');
+        configInput.focus();
+        return;
+      }
+
+      // Enter loading state
+      setLoadingState(true);
+
+      try {
+        const auditResult = await runSecurityAudit(configText);
+        currentAuditResult = auditResult;
+        renderAuditReport(auditResult);
+      } catch (error) {
+        console.error('Audit execution error:', error);
+        // Restore previous report or empty state so the right pane is never left blank
+        if (currentAuditResult) {
+          reportContent.classList.remove('hidden');
+        } else {
+          emptyState.classList.remove('hidden');
+        }
+        alert(`Security Audit Error:\n${error.message}`);
+      } finally {
+        setLoadingState(false);
+      }
+    }
+
+    /**
+     * Main asynchronous JavaScript function:
+     * In Mock Mode, evaluates the actual lines in `configText` dynamically.
+     * In Live Mode, targets the configured Gemini API endpoint (default: models/gemini-2.5-flash)
+     * with the strict enterprise cybersecurity auditor system prompt.
+     */
+    async function runSecurityAudit(configText) {
+      // 1. Check Mock Mode Toggle
+      if (useMock) {
+        await simulateAnalysisSteps();
+        return evaluateMockSecurityAudit(configText);
+      }
+
+      // 2. Live Gemini API Endpoint Execution
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        toggleSettingsModal(true);
+        throw new Error("No Gemini API Key detected. Please provide an API key in settings or continue in Mock Engine mode.");
+      }
+
+      const modelId = getModelId();
+
+      // Strict Enterprise System Prompt verbatim from prompt specification:
+      const systemPrompt = "You are a strict enterprise cybersecurity auditor. Analyze the provided configuration file text. Return ONLY a JSON object with two top-level keys: 'security_score' (an integer out of 100 based on file security) and 'vulnerabilities' (an array of objects). Each object in the array must have four keys: 'line' (the problematic config setting), 'severity' (Critical, Warning, or Info), 'reason' (a concise, technical explanation of the vulnerability), and 'remediation_command' (the exact bash command or corrected config line to patch it). Do not include markdown formatting or conversational text.";
+
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+
+      const requestPayload = {
+        system_instruction: {
+          parts: [
+            { text: systemPrompt }
+          ]
+        },
+        contents: [
+          {
+            parts: [
+              { text: configText }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          response_mime_type: "application/json"
+        }
+      };
+
+      // Animate telemetry progress smoothly while awaiting the live API response
+      startLiveLoadingProgress(modelId);
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestPayload)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Audit Engine HTTP error ${response.status} (models/${modelId}): ${errorText}`);
+        }
+
+        const responseData = await response.json();
+        const rawText = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!rawText) {
+          throw new Error(`Empty diagnostic response returned from models/${modelId}.`);
+        }
+
+        // Strip markdown code fences if present
+        const sanitized = rawText.trim()
+          .replace(/^```json\s*/i, "")
+          .replace(/^```\s*/i, "")
+          .replace(/\s*```$/i, "");
+
+        return JSON.parse(sanitized);
+      } finally {
+        stopLiveLoadingProgress();
+      }
+    }
+
+    function applyLoadingStepUI(stepText, subText, pctText, barWidth, logText) {
+      const progressBar = document.getElementById('loading-progress-bar');
+      const stepCounter = document.getElementById('loading-step-counter');
+      const substatus = document.getElementById('loading-substatus');
+      const percentage = document.getElementById('loading-percentage');
+      const logLine = document.getElementById('loading-log-line');
+
+      if (stepCounter) stepCounter.textContent = stepText;
+      if (substatus) substatus.textContent = subText;
+      if (percentage) percentage.textContent = pctText;
+      if (progressBar) progressBar.style.width = barWidth;
+      if (logLine) logLine.textContent = logText;
+    }
+
+    /**
+     * Precise static analysis progress simulation for Mock mode
+     */
+    async function simulateAnalysisSteps() {
+      applyLoadingStepUI(
+        "1 / 3",
+        "Status: Analyzing configuration policies...",
+        "28%",
+        "28%",
+        "> lexer: tokenizing directives & building AST..."
+      );
+      await delay(350);
+
+      applyLoadingStepUI(
+        "2 / 3",
+        "Evaluating AST against CIS-Ubuntu-22.04 Hardening Matrix...",
+        "68%",
+        "68%",
+        "> rule_check: validating cryptographic bounds & root access limits..."
+      );
+      await delay(450);
+
+      applyLoadingStepUI(
+        "3 / 3",
+        "Synthesizing remediation commands & integrity score...",
+        "95%",
+        "95%",
+        "> output: compiling compliance matrix telemetry..."
+      );
+      await delay(300);
+    }
+
+    /**
+     * Non-blocking progressive loading animation for Live API calls
+     */
+    function startLiveLoadingProgress(modelId) {
+      stopLiveLoadingProgress();
+      applyLoadingStepUI(
+        "1 / 3",
+        "Status: Analyzing configuration policies...",
+        "28%",
+        "28%",
+        `> dispatch: transmitting AST payload to models/${modelId}...`
+      );
+
+      liveLoadingTimers.push(setTimeout(() => {
+        applyLoadingStepUI(
+          "2 / 3",
+          "Evaluating AST against CIS-Ubuntu-22.04 Hardening Matrix...",
+          "68%",
+          "68%",
+          "> rule_check: validating cryptographic bounds & root access limits..."
+        );
+      }, 450));
+
+      liveLoadingTimers.push(setTimeout(() => {
+        applyLoadingStepUI(
+          "3 / 3",
+          "Synthesizing remediation commands & integrity score...",
+          "92%",
+          "92%",
+          "> output: awaiting structured compliance JSON telemetry..."
+        );
+      }, 1100));
+    }
+
+    function stopLiveLoadingProgress() {
+      liveLoadingTimers.forEach(t => clearTimeout(t));
+      liveLoadingTimers = [];
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function setLoadingState(isLoading) {
+      if (isLoading) {
+        auditBtn.disabled = true;
+        auditBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        auditBtnLabel.textContent = "Status: Analyzing configuration policies...";
+        
+        emptyState.classList.add('hidden');
+        reportContent.classList.add('hidden');
+        loadingState.classList.remove('hidden');
+      } else {
+        stopLiveLoadingProgress();
+        auditBtn.disabled = false;
+        auditBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        auditBtnLabel.textContent = "Audit Configuration";
+        loadingState.classList.add('hidden');
+      }
+    }
+
+    // ================= REPORT RENDERING & VISUAL FLAGGING =================
+
+    function renderAuditReport(data) {
+      currentAuditResult = data;
+      emptyState.classList.add('hidden');
+      loadingState.classList.add('hidden');
+      reportContent.classList.remove('hidden');
+
+      const score = Math.max(0, Math.min(100, parseInt(data.security_score, 10) || 0));
+      scoreReadout.textContent = score;
+
+      // Color-Code System Integrity Score
+      // 0-50: Red, 51-89: Amber, 90-100: Green
+      scoreCard.className = "border rounded-lg p-5 transition-all";
+      scoreProgressBar.style.width = `${score}%`;
+
+      if (score <= 50) {
+        // Red - Critical
+        scoreReadout.className = "font-mono text-6xl lg:text-7xl font-extrabold tracking-tighter leading-none text-rose-500";
+        scoreCard.classList.add('bg-rose-950/20', 'border-rose-900/60');
+        scorePostureLabel.textContent = "POSTURE STATUS: CRITICAL COMPROMISE RISK";
+        scorePostureLabel.className = "font-mono text-xs font-bold uppercase tracking-wider mt-2 text-rose-400";
+        scoreStatusIndicator.className = "w-2 h-2 rounded-full bg-rose-500 animate-pulse";
+        benchmarkRatingText.textContent = "NON-COMPLIANT";
+        benchmarkRatingText.className = "font-bold text-rose-400";
+        scoreProgressBar.className = "h-full transition-all duration-700 bg-rose-500";
+      } else if (score <= 89) {
+        // Amber - Warning
+        scoreReadout.className = "font-mono text-6xl lg:text-7xl font-extrabold tracking-tighter leading-none text-amber-400";
+        scoreCard.classList.add('bg-amber-950/20', 'border-amber-900/60');
+        scorePostureLabel.textContent = "POSTURE STATUS: SUB-OPTIMAL HARDENING";
+        scorePostureLabel.className = "font-mono text-xs font-bold uppercase tracking-wider mt-2 text-amber-400";
+        scoreStatusIndicator.className = "w-2 h-2 rounded-full bg-amber-400";
+        benchmarkRatingText.textContent = "PARTIAL COMPLIANCE";
+        benchmarkRatingText.className = "font-bold text-amber-400";
+        scoreProgressBar.className = "h-full transition-all duration-700 bg-amber-400";
+      } else {
+        // Green - Hardened
+        scoreReadout.className = "font-mono text-6xl lg:text-7xl font-extrabold tracking-tighter leading-none text-emerald-400";
+        scoreCard.classList.add('bg-emerald-950/20', 'border-emerald-900/60');
+        scorePostureLabel.textContent = "POSTURE STATUS: CIS HARDENED SPEC MEETS CRITERIA";
+        scorePostureLabel.className = "font-mono text-xs font-bold uppercase tracking-wider mt-2 text-emerald-400";
+        scoreStatusIndicator.className = "w-2 h-2 rounded-full bg-emerald-500";
+        benchmarkRatingText.textContent = "FULLY COMPLIANT";
+        benchmarkRatingText.className = "font-bold text-emerald-400";
+        scoreProgressBar.className = "h-full transition-all duration-700 bg-emerald-400";
+      }
+
+      // Render Vulnerability Counts
+      const vulnerabilities = Array.isArray(data.vulnerabilities) ? data.vulnerabilities : [];
+      findingsCountPill.textContent = vulnerabilities.length;
+
+      // Summary badge in header
+      const critCount = vulnerabilities.filter(v => (v.severity || '').toLowerCase() === 'critical').length;
+      const warnCount = vulnerabilities.filter(v => (v.severity || '').toLowerCase() === 'warning').length;
+      const infoCount = vulnerabilities.filter(v => (v.severity || '').toLowerCase() === 'info').length;
+
+      findingsSummaryBadge.classList.remove('hidden');
+      findingsSummaryBadge.innerHTML = `
+        <span class="text-rose-400 font-bold">${critCount} Crit</span> &bull; 
+        <span class="text-amber-400 font-bold">${warnCount} Warn</span> &bull; 
+        <span class="text-cyan-400 font-bold">${infoCount} Info</span>
+      `;
+
+      // Reset severity filter to ALL on every new audit and render cards
+      filterVulnerabilities('ALL');
+    }
+
+    function renderVulnerabilitiesList(vulnerabilities) {
+      vulnerabilitiesContainer.innerHTML = '';
+
+      const filtered = vulnerabilities.filter(v => {
+        if (activeFilter === 'ALL') return true;
+        return (v.severity || '').toLowerCase() === activeFilter.toLowerCase();
+      });
+
+      if (filtered.length === 0) {
+        vulnerabilitiesContainer.innerHTML = `
+          <div class="p-6 bg-slate-900/50 border border-slate-800 rounded text-center text-xs font-mono text-slate-500">
+            No vulnerabilities found matching filter criteria [${escapeHtml(activeFilter)}].
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach((vuln, index) => {
+        const severity = (vuln.severity || 'Info').trim();
+        const isCritical = severity.toLowerCase() === 'critical';
+        const isWarning = severity.toLowerCase() === 'warning';
+
+        // Dynamic styling based on severity (bold red text/borders for Critical, amber for Warning)
+        let cardBorderClass = 'border-slate-800 bg-slate-900/70';
+        let severityBadgeClass = 'text-cyan-400 bg-cyan-950/40 border-cyan-800/80';
+        let problematicLineClass = 'text-slate-300 bg-slate-950 border-slate-800';
+
+        if (isCritical) {
+          cardBorderClass = 'border-rose-900/70 bg-rose-950/15 hover:border-rose-700/80';
+          severityBadgeClass = 'text-rose-400 bg-rose-950/60 border-rose-600/80 font-extrabold';
+          problematicLineClass = 'text-rose-300 bg-rose-950/50 border-rose-900/60 font-bold';
+        } else if (isWarning) {
+          cardBorderClass = 'border-amber-900/70 bg-amber-950/15 hover:border-amber-700/80';
+          severityBadgeClass = 'text-amber-400 bg-amber-950/60 border-amber-600/80 font-bold';
+          problematicLineClass = 'text-amber-300 bg-amber-950/50 border-amber-900/60 font-semibold';
+        }
+
+        const card = document.createElement('div');
+        card.className = `border rounded-md p-4 transition-all duration-150 flex flex-col gap-3 ${cardBorderClass}`;
+
+        const uniqueFixId = `fix-cmd-${index}`;
+
+        card.innerHTML = `
+          <!-- Card Header: Severity & Problematic Line -->
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-widest border ${severityBadgeClass}">
+                ${escapeHtml(severity)}
+              </span>
+              <span class="text-xs font-mono text-slate-500 font-semibold">ISSUE #${index + 1}</span>
+            </div>
+            <div class="font-mono text-xs px-2.5 py-1 rounded border ${problematicLineClass}">
+              <code>${escapeHtml(vuln.line || 'Unspecified directive')}</code>
+            </div>
+          </div>
+
+          <!-- Technical Explanation -->
+          <div class="text-xs text-slate-300 leading-relaxed font-sans">
+            ${escapeHtml(vuln.reason || 'No technical description provided.')}
+          </div>
+
+          <!-- One-Click Remediation Section -->
+          <div class="pt-2 border-t border-slate-800/80 flex flex-col gap-1.5">
+            <div class="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-semibold">Remediation Command:</div>
+            
+            <div class="flex items-center justify-between gap-2 p-2 bg-slate-950 border border-slate-800/90 rounded group">
+              <!-- Subtle monospace code block -->
+              <code id="${uniqueFixId}" class="font-mono text-xs text-emerald-400/90 break-all select-all flex-1 px-1">
+                ${escapeHtml(vuln.remediation_command || '# No remediation directive available')}
+              </code>
+
+              <!-- Functioning Copy Fix Button (bound via addEventListener to eliminate DOM XSS & quote breaks) -->
+              <button 
+                type="button"
+                class="copy-btn shrink-0 inline-flex items-center gap-1 px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-slate-100 border border-slate-700/80 hover:border-slate-600 rounded font-mono text-[11px] font-semibold transition-colors cursor-pointer"
+                title="Copy remediation command to clipboard"
+              >
+                <svg class="w-3.5 h-3.5 text-slate-400 copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                <span class="btn-text">Copy Fix</span>
+              </button>
+            </div>
+          </div>
+        `;
+
+        const copyBtn = card.querySelector('.copy-btn');
+        if (copyBtn) {
+          copyBtn.addEventListener('click', () => {
+            copyRemediationCommand(vuln.remediation_command || '', copyBtn);
+          });
+        }
+
+        vulnerabilitiesContainer.appendChild(card);
+      });
+    }
+
+    function filterVulnerabilities(filterType) {
+      activeFilter = filterType;
+      
+      const buttons = {
+        'ALL': document.getElementById('filter-all-btn'),
+        'Critical': document.getElementById('filter-crit-btn'),
+        'Warning': document.getElementById('filter-warn-btn'),
+        'Info': document.getElementById('filter-info-btn')
+      };
+
+      Object.entries(buttons).forEach(([key, btn]) => {
+        if (!btn) return;
+        if (key === filterType) {
+          btn.className = "px-2 py-0.5 rounded bg-slate-800 text-slate-200 font-semibold border border-slate-700 transition-colors";
+        } else {
+          let textCol = 'text-slate-400';
+          if (key === 'Critical') textCol = 'text-rose-400';
+          if (key === 'Warning') textCol = 'text-amber-400';
+          if (key === 'Info') textCol = 'text-cyan-400';
+          btn.className = `px-2 py-0.5 rounded ${textCol} hover:bg-slate-800 transition-colors`;
+        }
+      });
+
+      if (currentAuditResult) {
+        renderVulnerabilitiesList(currentAuditResult.vulnerabilities || []);
+      }
+    }
+
+    // ================= CLIPBOARD COPY UTILITY =================
+
+    async function copyRemediationCommand(text, btnElement) {
+      if (!text) return;
+
+      let copied = false;
+
+      // Modern Clipboard API
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        } catch (err) {
+          console.warn("Clipboard API denied, falling back...", err);
+        }
+      }
+
+      // Robust execCommand fallback
+      if (!copied) {
+        try {
+          const tempInput = document.createElement("textarea");
+          tempInput.value = text;
+          tempInput.style.position = "fixed";
+          tempInput.style.left = "-9999px";
+          tempInput.style.top = "-9999px";
+          document.body.appendChild(tempInput);
+          tempInput.focus();
+          tempInput.select();
+          copied = document.execCommand('copy');
+          document.body.removeChild(tempInput);
+        } catch (err) {
+          console.error("Fallback clipboard copy failed:", err);
+        }
+      }
+
+      if (copied && btnElement) {
+        const btnText = btnElement.querySelector('.btn-text');
+        const originalText = btnText ? btnText.textContent : 'Copy Fix';
+        
+        btnElement.classList.add('border-emerald-500/80', 'text-emerald-400');
+        if (btnText) btnText.textContent = 'COPIED';
+
+        setTimeout(() => {
+          btnElement.classList.remove('border-emerald-500/80', 'text-emerald-400');
+          if (btnText) btnText.textContent = originalText;
+        }, 1800);
+      }
+    }
+
+    // ================= MODE TOGGLE & API KEY / MODEL SETTINGS =================
+
+    function setAuditMode(isMock) {
+      useMock = isMock;
+      syncModeUI();
+    }
+
+    function syncModeUI() {
+      const mockBtn = document.getElementById('mode-mock-btn');
+      const liveBtn = document.getElementById('mode-live-btn');
+      const statusLabel = document.getElementById('api-key-status-label');
+      const modelBadge = document.getElementById('target-model-badge');
+      const modalRadioMock = document.getElementById('modal-mode-mock');
+      const modalRadioLive = document.getElementById('modal-mode-live');
+
+      if (modelBadge) {
+        modelBadge.textContent = getModelId();
+      }
+
+      if (useMock) {
+        mockBtn.className = "px-2.5 py-1 rounded text-slate-200 bg-slate-800 font-semibold border border-slate-700/80 transition-colors";
+        liveBtn.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-colors";
+        statusLabel.textContent = "KEY: NONE (MOCK)";
+        if (modalRadioMock) modalRadioMock.checked = true;
+      } else {
+        mockBtn.className = "px-2.5 py-1 rounded text-slate-400 hover:text-slate-200 transition-colors";
+        liveBtn.className = "px-2.5 py-1 rounded text-slate-200 bg-slate-800 font-semibold border border-slate-700/80 transition-colors";
+        const hasKey = Boolean(getApiKey());
+        statusLabel.textContent = hasKey ? "KEY: ACTIVE" : "KEY: REQUIRED";
+        if (modalRadioLive) modalRadioLive.checked = true;
+      }
+    }
+
+    function toggleSettingsModal(show) {
+      const modal = document.getElementById('settings-modal');
+      const keyInput = document.getElementById('modal-api-key-input');
+      const modelInput = document.getElementById('modal-model-input');
+      if (show) {
+        if (keyInput) keyInput.value = getApiKey();
+        if (modelInput) modelInput.value = getModelId();
+        syncModeUI();
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    function saveSettingsModal() {
+      const keyInput = document.getElementById('modal-api-key-input');
+      const modelInput = document.getElementById('modal-model-input');
+
+      const key = keyInput ? keyInput.value.trim() : '';
+      if (key) {
+        localStorage.setItem('auditcore_gemini_api_key', key);
+      } else {
+        localStorage.removeItem('auditcore_gemini_api_key');
+      }
+
+      const rawModel = modelInput ? modelInput.value.trim().replace(/^models\//i, '') : '';
+      if (rawModel) {
+        localStorage.setItem('auditcore_gemini_model_v2', rawModel);
+      } else {
+        localStorage.setItem('auditcore_gemini_model_v2', DEFAULT_GEMINI_MODEL);
+      }
+
+      toggleSettingsModal(false);
+      syncModeUI();
+    }
+
+    function getApiKey() {
+      return localStorage.getItem('auditcore_gemini_api_key') || '';
+    }
+
+    function getModelId() {
+      const saved = (localStorage.getItem('auditcore_gemini_model_v2') || '').trim().replace(/^models\//i, '');
+      return saved || DEFAULT_GEMINI_MODEL;
+    }
+
+    // ================= SANITIZATION HELPERS =================
+
+    function escapeHtml(str) {
+      if (typeof str !== 'string') return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
